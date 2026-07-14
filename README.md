@@ -20,49 +20,93 @@ changes; restrict configuration changes to controlled maintenance windows.
 **Expected benefits:** faster response, accountability, compliance-ready
 audit trail, data-driven prioritization.
 
-## Phase II — Business Process Modeling
-Actors (swimlanes): **Reporter → SOC Analyst → Security Manager → System**
 
-Flow: Reporter submits incident → System timestamps and sets status OPEN →
-Analyst reviews and self-assigns (status → IN_PROGRESS) → Analyst performs
-response actions and logs them → Analyst resolves (status → RESOLVED) →
-Manager reviews and closes (status → CLOSED). Every status transition is
-recorded automatically by a trigger, independent of which actor triggers it.
 
-*(Build this as a BPMN/UML diagram with swimlanes for one of your slides —
-one lane per actor, boxes for each step above, arrows showing the flow.)*
+## PHASE II — Business Process Modeling
 
-## Phase III — Logical Database Design
-10 entities in 3rd Normal Form:
-`departments, employees, severity_levels, incident_categories, assets,
-public_holidays, incidents, incident_status_history, response_actions,
-audit_log`
+### System Scope
+CSIMS covers the full lifecycle of a security incident, from initial report
+to validated closure, with continuous automated oversight (audit logging,
+SLA monitoring, access control on reference data).
 
-- Every non-key attribute depends only on its table's primary key (2NF/3NF).
-- Lookup data (severity, category) is separated from transactional data
-  (incidents) so SLA/category definitions can change without touching
-  historical incident records.
-- `incident_status_history` exists specifically so the *current* status in
-  `incidents` doesn't overwrite the *history* of status changes — this is
-  what makes the audit requirement (Phase VII) possible.
+### Actors
+# Reporter (Employee): 
+Detects and submits a security incident.
+# System (automated):
+Logs, timestamps, audits, monitors SLA, enforces access control.
+# SOC Analyst:b 
+Investigates, responds to, and resolves incidents.
+# Security Manager:
+Reviews and approves closure (separation of duties).
 
-See the ERD rendered earlier in this conversation for the full entity
-relationship diagram with all foreign keys.
+### Swimlane diagram
+(Swimlane diagram image)
+
+### One-page explanation
+**Scope:** CSIMS covers the full lifecycle of a security incident, from
+initial report to validated closure, with continuous automated oversight.
+
+**Reporter lane:** any employee can detect and report an incident
+(phishing, malware, unauthorized access, etc.) — this is the entry point.
+
+**System lane (fully automated, driven by Oracle triggers):** timestamps
+every incident on creation, automatically logs every status change with no
+manual intervention required, continuously monitors response-time SLA
+against severity level, and enforces the mandatory business rule blocking
+configuration changes (severity levels, categories) on weekdays and public
+holidays.
+
+**SOC Analyst lane:** takes ownership of the incident, investigates,
+executes response actions, and proposes resolution.
+
+**Security Manager lane:** validates the resolution and formally closes the
+incident — a two-person control, standard practice in security operations
+to prevent a single analyst from silently closing incidents.
+
+**End-to-end flow:** Detect → Report → Log (OPEN) → Assign (IN_PROGRESS) →
+Investigate/Respond → Resolve (RESOLVED) → Review → Close (CLOSED), with
+full traceability at every transition via the audit and history triggers.
+
+
+## PHASE III — Logical Database Design
+
+### Entity List (10 entities, all in 3NF)
+
+# ER Diagram
+
+### Normalization Proof (up to 3NF)
+**1NF — Atomic values, no repeating groups:**
+Every attribute above holds a single atomic value (no comma-separated lists,
+no repeating columns like `action1, action2, action3`). Multi-valued facts
+— an incident having *many* status changes or *many* response actions —
+are modeled as separate child tables (`incident_status_history`,
+`response_actions`) rather than repeating columns. This satisfies 1NF.
+
+**2NF — No partial dependency on a composite key:**
+Every table uses a single-column surrogate primary key (`*_id`, generated
+by IDENTITY). Since no table has a composite primary key, partial
+dependency is structurally impossible — 2NF is automatically satisfied.
+
+**3NF — No transitive dependency (non-key attribute depending on another
+non-key attribute):**
+- In `employees`, `dept_id` determines the department, but department
+  *details* (dept_name) live only in `departments` — not duplicated here.
+- In `incidents`, `severity_id` and `category_id` are foreign keys;
+  `response_time_hours` (a severity attribute) and `category_name`/
+  `description` (category attributes) are **not** duplicated into
+  `incidents` — they stay in their own lookup tables and are reached via
+  JOIN. This is exactly what prevents transitive dependency: if
+  `response_time_hours` were copied into every incident row, it would
+  depend on `severity_id`, not on `incident_id` — a 3NF violation.
+- Similarly, `asset_name`/`ip_address` stay in `assets`, not copied into
+  `incidents`.
+
+Because every non-key attribute in every table depends only on that
+table's own primary key — the whole key, and nothing but the key — the
+schema satisfies 3NF.
 
 ## Phase IV — Database Creation
-```sql
--- Run as SYSDBA / a privileged user, replacing placeholders:
-CREATE USER "<StudentID>_<FirstName>_CyberIncident_DB"
-  IDENTIFIED BY "ChooseAStrongPassword123";
-
-GRANT CONNECT, RESOURCE TO "<StudentID>_<FirstName>_CyberIncident_DB";
-GRANT CREATE VIEW, CREATE SEQUENCE, CREATE TRIGGER, CREATE PROCEDURE
-  TO "<StudentID>_<FirstName>_CyberIncident_DB";
-ALTER USER "<StudentID>_<FirstName>_CyberIncident_DB" QUOTA UNLIMITED ON USERS;
-```
-Then connect as that user before running the scripts below in order.
-Take an OEM (Enterprise Manager) or SQL Developer screenshot showing the
-new user/schema for your documentation.
+(Database Creation sql script)
 
 ## Phase V — Table Implementation
 Run in order:
