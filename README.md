@@ -119,3 +119,40 @@ Insert_Sample_Data.sql
 
 ## Phase VII — Advanced Database Programming
 Trigger_Audit.sql
+
+## Queries Explanation
+SET SERVEROUTPUT ON;
+
+-- 1. All open/in-progress incidents with severity and category names
+SELECT i.incident_id, i.title, c.category_name, s.severity_name, i.status, i.date_reported
+FROM incidents i
+JOIN incident_categories c ON i.category_id = c.category_id
+JOIN severity_levels s     ON i.severity_id = s.severity_id
+WHERE i.status IN ('OPEN','IN_PROGRESS')
+ORDER BY s.response_time_hours;
+
+-- 2. Incident count per department (uses the standalone function)
+SELECT d.dept_name, get_open_incidents_count(d.dept_id) AS open_incidents
+FROM departments d
+ORDER BY open_incidents DESC;
+
+-- 3. Full audit trail for a given incident
+SELECT * FROM incident_status_history WHERE incident_id = 1 ORDER BY change_date;
+
+-- 4. Everything the audit trigger has captured so far
+SELECT audit_id, table_name, operation, db_user, action_date, old_value, new_value
+FROM audit_log
+ORDER BY action_date DESC;
+
+-- 5. Call the package to print a readable incident summary
+EXEC pkg_incident_mgmt.print_incident_summary(1);
+
+-- 6. Change a status through the package (fires both triggers automatically)
+EXEC pkg_incident_mgmt.change_status(2, 'RESOLVED', 2);
+
+-- 7. Check overdue incidents against SLA (cursor-based procedure)
+EXEC list_overdue_incidents;
+
+-- 8. Demonstrate the business-rule trigger blocking a weekday change
+-- (Run this on a Mon-Fri to see ORA-20020/20021 raised)
+-- INSERT INTO severity_levels (severity_name, response_time_hours) VALUES ('TEST', 1);
