@@ -73,6 +73,7 @@ full traceability at every transition via the audit and history triggers.
 ### Entity List (10 entities, all in 3NF)
 
 # ER Diagram
+(ER Diagram image)
 
 ### Normalization Proof (up to 3NF)
 **1NF — Atomic values, no repeating groups:**
@@ -106,41 +107,15 @@ table's own primary key — the whole key, and nothing but the key — the
 schema satisfies 3NF.
 
 ## Phase IV — Database Creation
-(Database Creation sql script)
+Database_Creation.sql
 
 ## Phase V — Table Implementation
-Run in order:
-1. `01_create_tables.sql` — all 10 tables, PK/FK/NOT NULL/UNIQUE/CHECK
-2. `02_insert_sample_data.sql` — realistic sample rows
+Create_Tables.sql
+Insert_Sample_Data.sql
 
 ## Phase VI — PL/SQL Programming
-- `03_procedures_functions.sql` — standalone function
-  (`get_open_incidents_count`), three procedures (`report_incident`,
-  `assign_incident`, `resolve_incident`), and one cursor-based procedure
-  (`list_overdue_incidents`).
-- `04_package_incident_mgmt.sql` — `pkg_incident_mgmt` package: groups
-  `count_by_status`, `change_status`, `print_incident_summary` under one
-  package spec/body, with a custom exception (`e_invalid_status`) and a
-  ROWTYPE cursor.
-
-All DML uses explicit `COMMIT`/`ROLLBACK` and `EXCEPTION` blocks — no
-silent failures.
+ Procédures_Fonctions.sql
+ Packages_Incident_Management.sql
 
 ## Phase VII — Advanced Database Programming
-- `05_triggers_audit.sql`:
-  - `trg_incidents_audit` — row-level AFTER trigger logging every
-    INSERT/UPDATE/DELETE on `incidents` into `audit_log` (who/when/what).
-  - `trg_incidents_status_history` — automatically records every status
-    change, so the history is captured even if someone updates the table
-    directly (not just through the package).
-  - `is_restricted_day` — helper function checking weekday + holiday.
-  - `trg_protect_severity_levels` / `trg_protect_incident_categories` —
-    **compound triggers** implementing the required business rule: block
-    INSERT/UPDATE/DELETE on Mon-Fri and on any date listed in
-    `public_holidays`. Applied to the reference/config tables rather than
-    `incidents` itself, since incidents must be logged 24/7 — be ready to
-    explain this design choice in your defense.
-
-
-5. The difference between the standalone procedures (Phase VI) and the
-   package (also Phase VI) — why group some logic into a package.
+Trigger_Audit.sql
