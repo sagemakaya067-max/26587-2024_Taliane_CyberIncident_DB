@@ -129,7 +129,7 @@ FROM incidents i
 JOIN incident_categories c ON i.category_id = c.category_id
 JOIN severity_levels s     ON i.severity_id = s.severity_id
 WHERE i.status IN ('OPEN','IN_PROGRESS')
-ORDER BY s.response_time_hours;
+ORDER BY s.response_time_hours; 
 
 -- 2. Incident count per department (uses the standalone function)
 SELECT d.dept_name, get_open_incidents_count(d.dept_id) AS open_incidents
